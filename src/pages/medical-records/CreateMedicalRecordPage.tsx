@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -5,6 +6,7 @@ import { z } from 'zod';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { useCreateMedicalRecord } from '@/hooks/useMedicalRecords';
+import PatientSelect from '@/components/shared/PatientSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,9 +25,13 @@ export default function CreateMedicalRecordPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const patientIdStr = searchParams.get('patientId');
-  const patientId = patientIdStr ? Number(patientIdStr) : null;
 
   const createRecord = useCreateMedicalRecord();
+
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
+    patientIdStr ? Number(patientIdStr) : null
+  );
+  const [selectedPatientName, setSelectedPatientName] = useState<string | null>(null);
 
   const {
     register,
@@ -39,13 +45,13 @@ export default function CreateMedicalRecordPage() {
   });
 
   const onSubmit = (data: RecordFormValues) => {
-    if (!patientId) {
-      toast.error('No patient ID provided.');
+    if (!selectedPatientId) {
+      toast.error('Please select a patient first.');
       return;
     }
     createRecord.mutate(
       {
-        patientId,
+        patientId: selectedPatientId,
         diagnosis: data.diagnosis,
         treatmentNotes: data.treatmentNotes || undefined,
         visitDate: new Date(data.visitDate).toISOString(),
@@ -53,7 +59,7 @@ export default function CreateMedicalRecordPage() {
       {
         onSuccess: () => {
           toast.success('Medical record created successfully');
-          navigate(`/patients/${patientId}`);
+          navigate(`/patients/${selectedPatientId}`);
         },
         onError: () => {
           toast.error('Failed to create medical record. Please try again.');
@@ -61,16 +67,6 @@ export default function CreateMedicalRecordPage() {
       },
     );
   };
-
-  if (!patientId) {
-    return (
-      <div className="p-4">
-        <p className="text-destructive">
-          Missing patient ID. Please navigate here from a patient's detail page.
-        </p>
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -80,11 +76,21 @@ export default function CreateMedicalRecordPage() {
         <CardHeader>
           <CardTitle>Medical Record</CardTitle>
           <CardDescription>
-            Patient #{patientId} · Doctor information is automatically recorded from your session.
+            {selectedPatientName
+              ? `Patient: ${selectedPatientName} · Doctor information is automatically recorded from your session.`
+              : 'Doctor information is automatically recorded from your session.'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
+            <PatientSelect
+              value={selectedPatientId}
+              onChange={(id, name) => {
+                setSelectedPatientId(id);
+                setSelectedPatientName(name);
+              }}
+            />
+
             <div className="grid gap-2">
               <Label htmlFor="visitDate">Visit Date & Time *</Label>
               <Input
@@ -126,7 +132,7 @@ export default function CreateMedicalRecordPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={createRecord.isPending}>
+              <Button type="submit" disabled={createRecord.isPending || !selectedPatientId}>
                 {createRecord.isPending ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
@@ -139,7 +145,7 @@ export default function CreateMedicalRecordPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate(`/patients/${patientId}`)}
+                onClick={() => navigate(selectedPatientId ? `/patients/${selectedPatientId}` : '/')}
               >
                 Cancel
               </Button>

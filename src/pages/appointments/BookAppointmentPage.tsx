@@ -7,13 +7,14 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { useCreateAppointment } from '@/hooks/useAppointments';
+import PatientSelect from '@/components/shared/PatientSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const bookSchema = z.object({
-  patientId: z.coerce.number({ required_error: 'Patient ID is required' }).positive('Patient ID must be positive'),
+  patientId: z.coerce.number({ required_error: 'Patient is required' }).positive('Select a patient'),
   doctorId: z.coerce.number({ required_error: 'Doctor ID is required' }).positive('Doctor ID must be positive'),
   appointmentDate: z
     .string()
@@ -32,10 +33,14 @@ export default function BookAppointmentPage() {
 
   const createAppointment = useCreateAppointment();
   const [conflictError, setConflictError] = useState<string | null>(null);
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
+    patientIdParam ? Number(patientIdParam) : null
+  );
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<BookFormValues>({
     resolver: zodResolver(bookSchema),
@@ -87,19 +92,14 @@ export default function BookAppointmentPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="patientId">Patient ID *</Label>
-              <Input
-                id="patientId"
-                type="number"
-                min={1}
-                aria-invalid={!!errors.patientId}
-                {...register('patientId')}
-              />
-              {errors.patientId && (
-                <p className="text-sm text-destructive">{errors.patientId.message}</p>
-              )}
-            </div>
+            <PatientSelect
+              value={selectedPatientId}
+              onChange={(id) => {
+                setSelectedPatientId(id);
+                setValue('patientId', id, { shouldValidate: true });
+              }}
+              error={errors.patientId?.message}
+            />
 
             <div className="grid gap-2">
               <Label htmlFor="doctorId">Doctor ID *</Label>
@@ -107,11 +107,16 @@ export default function BookAppointmentPage() {
                 id="doctorId"
                 type="number"
                 min={1}
+                placeholder="Enter the doctor's ID"
                 aria-invalid={!!errors.doctorId}
                 {...register('doctorId')}
               />
-              {errors.doctorId && (
+              {errors.doctorId ? (
                 <p className="text-sm text-destructive">{errors.doctorId.message}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Enter the numeric ID of the doctor (e.g. from the appointments page).
+                </p>
               )}
             </div>
 
@@ -128,7 +133,6 @@ export default function BookAppointmentPage() {
               )}
             </div>
 
-            {/* Inline 409 conflict error */}
             {conflictError && (
               <div className="rounded-md bg-red-50 border border-red-300 p-3 text-red-700 text-sm">
                 ⚠️ {conflictError}

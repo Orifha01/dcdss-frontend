@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { Loader2, AlertTriangle, Info } from 'lucide-react';
 import axios from 'axios';
 import { usePrescribeMedication } from '@/hooks/useMedications';
+import { usePatient } from '@/hooks/usePatients';
+import PatientSelect from '@/components/shared/PatientSelect';
 import type { SafetyWarningDto, PrescribeMedicationResponse } from '@/types/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,10 +16,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
+const selectClass =
+  'h-8 w-full appearance-none rounded-lg border border-input bg-transparent pl-2.5 pr-8 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50';
+
 const prescribeSchema = z.object({
   recordId: z.coerce
-    .number({ required_error: 'Record ID is required' })
-    .positive('Record ID must be positive'),
+    .number({ required_error: 'Medical record is required' })
+    .positive('Select a record'),
   drugName: z.string().min(1, 'Drug name is required'),
   dosage: z.string().min(1, 'Dosage is required'),
   frequency: z.string().min(1, 'Frequency is required'),
@@ -57,9 +62,16 @@ export default function PrescribeMedicationPage() {
   const [blockingError, setBlockingError] = useState<string | null>(null);
   const [successData, setSuccessData] = useState<PrescribeMedicationResponse | null>(null);
 
+  const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
+  const [selectedPatientName, setSelectedPatientName] = useState<string | null>(null);
+
+  const { data: patientDetail, isLoading: recordsLoading } = usePatient(selectedPatientId ?? 0);
+  const records = patientDetail?.medicalHistory ?? [];
+
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<PrescribeFormValues>({
     resolver: zodResolver(prescribeSchema),
@@ -100,7 +112,6 @@ export default function PrescribeMedicationPage() {
     );
   };
 
-  // Show success summary
   if (successData) {
     const { medication, warnings } = successData;
     return (
@@ -148,7 +159,6 @@ export default function PrescribeMedicationPage() {
         </AlertDescription>
       </Alert>
 
-      {/* Blocking error from 409 Conflict */}
       {blockingError && (
         <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
           <p className="text-sm font-semibold text-destructive">Prescription Blocked</p>
@@ -159,25 +169,53 @@ export default function PrescribeMedicationPage() {
       <Card>
         <CardHeader>
           <CardTitle>Medication Details</CardTitle>
-          {recordIdStr && (
-            <CardDescription>Medical Record #{recordIdStr}</CardDescription>
+          {selectedPatientName && (
+            <CardDescription>Patient: {selectedPatientName}</CardDescription>
           )}
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-            <div className="grid gap-2">
-              <Label htmlFor="recordId">Medical Record ID *</Label>
-              <Input
-                id="recordId"
-                type="number"
-                min={1}
-                aria-invalid={!!errors.recordId}
-                {...register('recordId')}
-              />
-              {errors.recordId && (
-                <p className="text-sm text-destructive">{errors.recordId.message}</p>
-              )}
-            </div>
+            <PatientSelect
+              value={selectedPatientId}
+              onChange={(id, name) => {
+                setSelectedPatientId(id);
+                setSelectedPatientName(name);
+                setValue('recordId', 0 as unknown as number);
+              }}
+            />
+
+            {selectedPatientId && (
+              <div className="grid gap-2">
+                <Label htmlFor="recordId">Medical Record *</Label>
+                {recordsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="size-4 animate-spin" /> Loading records…
+                  </div>
+                ) : records.length === 0 ? (
+                  <p className="text-sm text-destructive">
+                    No medical records found for this patient. Create a visit record first.
+                  </p>
+                ) : (
+                  <select
+                    id="recordId"
+                    className={selectClass}
+                    aria-invalid={!!errors.recordId}
+                    {...register('recordId')}
+                  >
+                    <option value="">Select a record…</option>
+                    {records.map((r) => (
+                      <option key={r.recordId} value={r.recordId}>
+                        Record #{r.recordId} — {r.diagnosis.slice(0, 50)}
+                        {r.diagnosis.length > 50 ? '…' : ''} ({new Date(r.visitDate).toLocaleDateString()})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {errors.recordId && (
+                  <p className="text-sm text-destructive">{errors.recordId.message}</p>
+                )}
+              </div>
+            )}
 
             <div className="grid gap-2">
               <Label htmlFor="drugName">Drug Name *</Label>
@@ -221,7 +259,7 @@ export default function PrescribeMedicationPage() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={prescribe.isPending}>
+              <Button type="submit" disabled={prescribe.isPending || !selectedPatientId}>
                 {prescribe.isPending ? (
                   <>
                     <Loader2 className="mr-2 size-4 animate-spin" />
@@ -231,11 +269,7 @@ export default function PrescribeMedicationPage() {
                   'Prescribe'
                 )}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate(-1)}
-              >
+              <Button type="button" variant="outline" onClick={() => navigate(-1)}>
                 Cancel
               </Button>
             </div>
