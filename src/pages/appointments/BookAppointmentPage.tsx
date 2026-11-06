@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { useCreateAppointment } from '@/hooks/useAppointments';
@@ -29,6 +31,7 @@ export default function BookAppointmentPage() {
   const patientIdParam = searchParams.get('patientId');
 
   const createAppointment = useCreateAppointment();
+  const [conflictError, setConflictError] = useState<string | null>(null);
 
   const {
     register,
@@ -42,6 +45,7 @@ export default function BookAppointmentPage() {
   });
 
   const onSubmit = (data: BookFormValues) => {
+    setConflictError(null);
     createAppointment.mutate(
       {
         patientId: data.patientId,
@@ -50,11 +54,24 @@ export default function BookAppointmentPage() {
       },
       {
         onSuccess: () => {
-          toast.success('Appointment booked');
+          toast.success('Appointment booked successfully!');
           navigate(`/appointments?doctorId=${data.doctorId}`);
         },
-        onError: () => {
-          toast.error('Failed to book appointment. Please try again.');
+        onError: (error) => {
+          if (axios.isAxiosError(error)) {
+            if (error.response?.status === 409) {
+              setConflictError(
+                error.response.data?.detail ||
+                'This time slot is already booked.'
+              );
+            } else if (error.response?.status === 400) {
+              toast.error('Please check the form for errors.');
+            } else {
+              toast.error('Something went wrong. Please try again.');
+            }
+          } else {
+            toast.error('Failed to book appointment. Please try again.');
+          }
         },
       },
     );
@@ -110,6 +127,13 @@ export default function BookAppointmentPage() {
                 <p className="text-sm text-destructive">{errors.appointmentDate.message}</p>
               )}
             </div>
+
+            {/* Inline 409 conflict error */}
+            {conflictError && (
+              <div className="rounded-md bg-red-50 border border-red-300 p-3 text-red-700 text-sm">
+                ⚠️ {conflictError}
+              </div>
+            )}
 
             <div className="flex gap-3 pt-2">
               <Button type="submit" disabled={createAppointment.isPending}>
