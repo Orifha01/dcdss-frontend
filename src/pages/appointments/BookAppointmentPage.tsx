@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Loader2 } from 'lucide-react';
 import { useCreateAppointment } from '@/hooks/useAppointments';
 import PatientSelect from '@/components/shared/PatientSelect';
+import useAuthStore from '@/store/authStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -32,6 +33,7 @@ export default function BookAppointmentPage() {
   const patientIdParam = searchParams.get('patientId');
 
   const createAppointment = useCreateAppointment();
+  const { userId, username } = useAuthStore();
   const [conflictError, setConflictError] = useState<string | null>(null);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(
     patientIdParam ? Number(patientIdParam) : null
@@ -46,6 +48,8 @@ export default function BookAppointmentPage() {
     resolver: zodResolver(bookSchema),
     defaultValues: {
       patientId: patientIdParam ? Number(patientIdParam) : undefined,
+      // Pre-fill doctor ID from the logged-in user
+      doctorId: userId ?? undefined,
     },
   });
 
@@ -102,21 +106,19 @@ export default function BookAppointmentPage() {
             />
 
             <div className="grid gap-2">
-              <Label htmlFor="doctorId">Doctor ID *</Label>
+              <Label htmlFor="doctorId">Doctor</Label>
               <Input
                 id="doctorId"
-                type="number"
-                min={1}
-                placeholder="Enter the doctor's ID"
-                aria-invalid={!!errors.doctorId}
-                {...register('doctorId')}
+                type="text"
+                value={username ? `${username} (ID #${userId})` : `ID #${userId}`}
+                readOnly
+                disabled
+                className="bg-muted text-muted-foreground cursor-not-allowed"
               />
-              {errors.doctorId ? (
+              {/* hidden field so RHF still picks up the value */}
+              <input type="hidden" {...register('doctorId')} />
+              {errors.doctorId && (
                 <p className="text-sm text-destructive">{errors.doctorId.message}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Enter the numeric ID of the doctor (e.g. from the appointments page).
-                </p>
               )}
             </div>
 
