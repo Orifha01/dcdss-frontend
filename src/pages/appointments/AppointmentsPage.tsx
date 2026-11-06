@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Search, CalendarPlus } from 'lucide-react';
+import { CalendarPlus } from 'lucide-react';
 import { useAppointments } from '@/hooks/useAppointments';
+import useAuthStore from '@/store/authStore';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -26,47 +26,38 @@ function appointmentStatusClass(status: string): string {
 
 export default function AppointmentsPage() {
   const navigate = useNavigate();
-  const [doctorIdInput, setDoctorIdInput] = useState('');
-  const [activeDoctorId, setActiveDoctorId] = useState<number | null>(null);
+  const { userId, username } = useAuthStore();
+
+  // Auto-load appointments for the logged-in doctor
+  const [activeDoctorId, setActiveDoctorId] = useState<number | null>(userId ?? null);
+
+  // Re-sync if userId loads after mount (e.g. page refresh rehydrate)
+  useEffect(() => {
+    if (userId && !activeDoctorId) setActiveDoctorId(userId);
+  }, [userId, activeDoctorId]);
 
   const { data: appointments, isLoading } = useAppointments(activeDoctorId ?? 0);
-
-  function handleSearch() {
-    const n = Number(doctorIdInput);
-    if (n > 0) setActiveDoctorId(n);
-  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Appointments</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Appointments</h1>
+          {username && activeDoctorId && (
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Showing appointments for {username} (ID #{activeDoctorId})
+            </p>
+          )}
+        </div>
         <Button onClick={() => navigate('/appointments/new')}>
           <CalendarPlus className="mr-2 size-4" />
           Book Appointment
         </Button>
       </div>
 
-      {/* Doctor search */}
-      <div className="flex items-center gap-2 max-w-sm">
-        <Input
-          type="number"
-          placeholder="Doctor ID"
-          value={doctorIdInput}
-          onChange={(e) => setDoctorIdInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSearch();
-          }}
-          aria-label="Doctor ID"
-          min={1}
-        />
-        <Button variant="outline" onClick={handleSearch} aria-label="Search">
-          <Search className="size-4" />
-        </Button>
-      </div>
-
       {activeDoctorId === null && (
         <p className="text-sm text-muted-foreground">
-          Enter a Doctor ID above to view their appointments.
+          No doctor ID found. Please log in again.
         </p>
       )}
 
@@ -82,7 +73,7 @@ export default function AppointmentsPage() {
         <>
           {appointments.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No appointments found for this doctor.
+              No appointments found.
             </p>
           ) : (
             <Table>
