@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { Search, FlaskConical } from 'lucide-react';
+import { FlaskConical } from 'lucide-react';
 import { useLabResults } from '@/hooks/useLaboratory';
 import useAuthStore from '@/store/authStore';
+import PatientSelect from '@/components/shared/PatientSelect';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from 'cn';
 import {
@@ -36,19 +36,13 @@ export default function LabOrdersPage() {
   const isLabStaff = role === 'LaboratoryStaff';
   const canOrder = role === 'Doctor' || role === 'Nurse';
 
-  // patientId can come from URL query param or from a local search field
   const urlPatientId = searchParams.get('patientId');
-  const [patientIdInput, setPatientIdInput] = useState(urlPatientId ?? '');
   const [activePatientId, setActivePatientId] = useState<number | null>(
     urlPatientId ? Number(urlPatientId) : null,
   );
+  const [patientName, setPatientName] = useState<string | null>(null);
 
   const { data: results, isLoading } = useLabResults(activePatientId ?? 0);
-
-  function handleSearch() {
-    const n = Number(patientIdInput);
-    if (n > 0) setActivePatientId(n);
-  }
 
   return (
     <div className="space-y-4">
@@ -62,27 +56,21 @@ export default function LabOrdersPage() {
         )}
       </div>
 
-      {/* Patient search */}
-      <div className="flex items-center gap-2 max-w-sm">
-        <Input
-          type="number"
-          placeholder="Patient ID"
-          value={patientIdInput}
-          onChange={(e) => setPatientIdInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSearch();
+      {/* Patient picker */}
+      <div className="max-w-sm">
+        <PatientSelect
+          value={activePatientId}
+          onChange={(id, name) => {
+            setActivePatientId(id);
+            setPatientName(name);
           }}
-          aria-label="Patient ID"
-          min={1}
+          label="Select Patient"
         />
-        <Button variant="outline" onClick={handleSearch} aria-label="Search">
-          <Search className="size-4" />
-        </Button>
       </div>
 
       {activePatientId === null && (
         <p className="text-sm text-muted-foreground">
-          Enter a Patient ID above to view their lab orders.
+          Select a patient above to view their lab orders.
         </p>
       )}
 
@@ -97,7 +85,7 @@ export default function LabOrdersPage() {
       {activePatientId !== null && !isLoading && results && (
         <>
           <p className="text-sm text-muted-foreground">
-            Showing results for Patient #{activePatientId}
+            Showing results for {patientName ?? `Patient #${activePatientId}`}
             {' '}· {results.length} order{results.length !== 1 ? 's' : ''}
           </p>
           <Table>

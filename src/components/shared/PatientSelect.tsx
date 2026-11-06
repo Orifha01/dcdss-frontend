@@ -30,7 +30,7 @@ export default function PatientSelect({ value, onChange, error, label = 'Patient
   const selected = patients.find((p) => p.patientId === value);
 
   return (
-    <div className="grid gap-2">
+    <div className="relative z-50 grid gap-2">
       <label className="text-sm font-medium leading-none">{label}</label>
       <div className="relative">
         <Input
@@ -46,7 +46,7 @@ export default function PatientSelect({ value, onChange, error, label = 'Patient
           <Loader2 className="absolute right-2 top-2 size-4 animate-spin text-muted-foreground" />
         )}
         {open && filtered.length > 0 && (
-          <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-input bg-popover shadow-md text-sm">
+          <ul className="absolute z-[9999] mt-1 max-h-56 w-full overflow-auto rounded-lg border border-input bg-popover shadow-lg text-sm">
             {filtered.map((p) => (
               <li
                 key={p.patientId}
@@ -64,7 +64,7 @@ export default function PatientSelect({ value, onChange, error, label = 'Patient
           </ul>
         )}
         {open && !isLoading && filtered.length === 0 && (
-          <div className="absolute z-50 mt-1 w-full rounded-lg border border-input bg-popover px-3 py-2 text-sm text-muted-foreground shadow-md">
+          <div className="absolute z-[9999] mt-1 w-full rounded-lg border border-input bg-popover px-3 py-2 text-sm text-muted-foreground shadow-lg">
             No patients found
           </div>
         )}
