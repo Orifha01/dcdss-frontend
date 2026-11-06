@@ -131,7 +131,7 @@ export const laboratoryApi = {
 export const medicationsApi = {
   prescribe: (data: CreateMedicationRequest) =>
     apiClient
-      .post<PrescribeMedicationResponse>('/api/medications/prescribe', data)
+      .post<PrescribeMedicationResponse>('/api/medications', data)
       .then((r) => r.data),
 
   discontinue: (id: number) =>
@@ -174,7 +174,7 @@ export const cdsApi = {
 export const reportsApi = {
   getMonthlyStats: (month: number, year: number) =>
     apiClient
-      .get<MonthlyStatsDto>('/api/reports/monthly', { params: { month, year } })
+      .get<MonthlyStatsDto>('/api/reports/monthly-stats', { params: { month, year } })
       .then((r) => r.data),
 };
 
